@@ -19,7 +19,7 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
 
-# Fetch Truth or Dare from external API
+# Online Truth or Dare API
 def fetch_online(category: str) -> str:
     try:
         resp = requests.get(f"https://api.truthordarebot.xyz/v1/{category}")
@@ -32,13 +32,13 @@ def fetch_online(category: str) -> str:
 # Simulate human typing
 async def human_typing(context: ContextTypes.DEFAULT_TYPE, chat_id: int, typing_time: float = None):
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
-    await asyncio.sleep(typing_time if typing_time else random.uniform(1.0, 3.0))
+    await asyncio.sleep(typing_time if typing_time else random.uniform(1.0, 2.5))
 
 # Prepare Gemini payload
 def query_payload(prompt: str):
     return {"contents": [{"parts": [{"text": prompt}]}]}
 
-# Send message to Gemini and get response
+# Gemini query
 async def query_gemini(user_input: str, context: ContextTypes.DEFAULT_TYPE) -> str:
     history = context.chat_data.get('history', [])
     if not history:
@@ -83,14 +83,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             InlineKeyboardButton("Add Me To Your Group", url="https://t.me/YourBotUsername?startgroup=true")
         ]
     ]
-    await update.message.reply_text(greeting, reply_markup=InlineKeyboardMarkup(keyboard))
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(greeting, reply_markup=reply_markup)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await human_typing(context, update.effective_chat.id)
     help_text = (
         "I can play Truth or Dare or just chat with you!\n"
         "/start - Greet Hinata\n"
-        "/truth - Ask a truth question\n"
+        "/truth - Ask me a truth question\n"
         "/dare - Give me a dare\n"
         "/help - Show this help message"
     )
@@ -114,11 +115,11 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     reply = await query_gemini(user_msg, context)
     await update.message.reply_text(reply)
 
-# Build and start the Application
+# Main entry
 async def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    # Commands menu
+    # Set bot command menu
     await app.bot.set_my_commands([
         BotCommand("start", "Greet Hinata"),
         BotCommand("help", "Show help menu"),
@@ -126,6 +127,7 @@ async def main():
         BotCommand("dare", "Give me a dare")
     ])
 
+    # Register handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("truth", truth))
@@ -133,14 +135,11 @@ async def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat))
 
     print("Hinata Bot is running...")
-    # Note: close_loop=False prevents it from closing the global loop
-    await app.run_polling(close_loop=False)
 
-# Entrypoint that reuses any existing loop
-if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        # Railway (or other managed env) already has a loop
-        loop.create_task(main())
-    else:
-        loop.run_until_complete(main())
+    await app.initialize()
+    await app.start()
+    while True:
+        await asyncio.sleep(3600)
+
+if __name__ == '__main__':
+    asyncio.run(main())
