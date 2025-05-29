@@ -85,7 +85,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     help_text = (
         "I can play Truth or Dare or just chat with you!\n"
         "/start - Greet Hinata\n"
-        "/truth - Ask me a truth question\n"
+        "/truth - Ask a truth question\n"
         "/dare - Give me a dare\n"
         "/help - Show this help message"
     )
@@ -109,7 +109,7 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     reply = await query_gemini(user_msg, context)
     await update.message.reply_text(reply)
 
-async def setup():
+async def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
     await app.bot.set_my_commands([
@@ -125,19 +125,8 @@ async def setup():
     app.add_handler(CommandHandler("dare", dare))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat))
 
-    await app.initialize()
-    await app.start()
     print("Hinata Bot is running...")
-    await app.updater.start_polling()
-    await app.updater.idle()
+    await app.run_polling()
 
 if __name__ == "__main__":
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # Railway or special environments like IPython
-            asyncio.ensure_future(setup())
-        else:
-            loop.run_until_complete(setup())
-    except RuntimeError:
-        asyncio.run(setup())
+    asyncio.run(main())
