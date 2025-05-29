@@ -19,7 +19,7 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
 
-# Online Truth or Dare API endpoints
+# Fetch Truth or Dare from external API
 def fetch_online(category: str) -> str:
     try:
         resp = requests.get(f"https://api.truthordarebot.xyz/v1/{category}")
@@ -34,11 +34,11 @@ async def human_typing(context: ContextTypes.DEFAULT_TYPE, chat_id: int, typing_
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
     await asyncio.sleep(typing_time if typing_time else random.uniform(1.0, 3.0))
 
-# Prepare Gemini payload
+# Format Gemini request
 def query_payload(prompt: str):
     return {"contents": [{"parts": [{"text": prompt}]}]}
 
-# Gemini query
+# Send message to Gemini and get response
 async def query_gemini(user_input: str, context: ContextTypes.DEFAULT_TYPE) -> str:
     history = context.chat_data.get('history', [])
     if not history:
@@ -115,11 +115,11 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     reply = await query_gemini(user_msg, context)
     await update.message.reply_text(reply)
 
-# Main app
+# Main app logic
 async def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    # Set bot commands menu
+    # Bot menu
     await app.bot.set_my_commands([
         BotCommand("start", "Greet Hinata"),
         BotCommand("help", "Show help menu"),
@@ -133,8 +133,17 @@ async def main():
     app.add_handler(CommandHandler("dare", dare))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat))
 
-    print("Hinata Bot is running with Gemini Pro and inline buttons!")
+    print("Hinata Bot is running...")
     await app.run_polling()
 
+# Async loop patch for Railway / Python 3.12+
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        asyncio.get_event_loop().run_until_complete(main())
+    except RuntimeError as e:
+        if "This event loop is already running" in str(e):
+            loop = asyncio.get_event_loop()
+            loop.create_task(main())
+            loop.run_forever()
+        else:
+            raise
