@@ -24,8 +24,7 @@ def fetch_online(category: str) -> str:
     try:
         resp = requests.get(f"https://api.truthordarebot.xyz/v1/{category}")
         resp.raise_for_status()
-        data = resp.json()
-        return data.get('question', 'Hmm... I have no question right now.')
+        return resp.json().get('question', 'Hmm... I have no question right now.')
     except Exception:
         return "Sorry, I couldn't fetch a question at the moment."
 
@@ -115,11 +114,11 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     reply = await query_gemini(user_msg, context)
     await update.message.reply_text(reply)
 
-# Main entry
+# Main entry and keep-alive
 async def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    # Set bot command menu
+    # Set bot commands menu
     await app.bot.set_my_commands([
         BotCommand("start", "Greet Hinata"),
         BotCommand("help", "Show help menu"),
@@ -135,11 +134,7 @@ async def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat))
 
     print("Hinata Bot is running...")
-
-    await app.initialize()
-    await app.start()
-    while True:
-        await asyncio.sleep(3600)
+    await app.run_polling()
 
 if __name__ == '__main__':
     asyncio.run(main())
