@@ -4,6 +4,7 @@ import time
 import random
 import asyncio
 import requests
+import logging
 from telegram import Update, BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ChatAction
 from telegram.ext import (
@@ -13,6 +14,9 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
 
 # Load environment variables
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -61,7 +65,8 @@ async def query_gemini(user_input: str, context: ContextTypes.DEFAULT_TYPE) -> s
         response = requests.post(GEMINI_ENDPOINT, headers=headers, json=payload)
         response.raise_for_status()
         reply = response.json()['candidates'][0]['content']['parts'][0]['text']
-    except Exception:
+    except Exception as e:
+        logging.error(f"Gemini API error: {e}")
         reply = "Sorry... I can't think of a good reply right now."
 
     history.append({"role": "assistant", "content": reply})
@@ -133,8 +138,13 @@ async def main():
     app.add_handler(CommandHandler("dare", dare))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat))
 
-    print("Hinata Bot is running...")
+    logging.info("Hinata Bot is running...")
     await app.run_polling()
 
+# Safe event loop handling for Railway, Jupyter, etc.
 if __name__ == '__main__':
-    asyncio.run(main())
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(main())
+    except RuntimeError:
+        asyncio.run(main())
